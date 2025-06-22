@@ -1,65 +1,168 @@
-const API_KEY = "412e7fa8c4e9e807519821975a1aedf1";
-// let weatherData = document.querySelector('h1');
+const userTab =document.querySelector('[data-userWeather]');
+const searchTab = document.querySelector("[data-searchWeather]");
+const userContainer = document.querySelector('.weather-container');
 
-async function fetchWeatherDetail() {
-    let city = "vadodara";
+const grantAccessContainer = document.querySelector('.grant-location-container');
+const searchForm = document.querySelector('[data-searchForm]');
+const loadingScreen = document.querySelector('.loading-container');
+const userInfoContainer = document.querySelector(".user-info-container");
 
-    try {
-        // const response = await fetch(
-        //     `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
-        // );
-        const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
 
-        );
-        // console.log(response);
 
-                                // for fetch method
-        // if (!response.ok) {
-        //     throw new Error(`HTTP error! status: ${response.status}`);
-        // }
+let currentTab = userTab;
+const API_KEY = "9ec50e51f28360f057459ae5b4a0c25d";;
+currentTab.classList.add('current-tab');
+getfromSessionStorage();
 
-        // const data = await response.json();
-        // console.log("✅ Weather data:", data.main);
+function switchTab(clickedTab){
+    if(clickedTab != currentTab){
+        currentTab.classList.remove('current-tab');
+        currentTab = clickedTab;
+        currentTab.classList.add('current-tab');
 
-        console.log(response.data.main);
-        let newPara = document.createElement('p');
-        // newPara.innerText =`${data.main.temp}°C` ;    //for fetch method
+        if(!searchForm.classList.contains('active')){
+            userInfoContainer.classList.remove('active');
+            grantAccessContainer.classList.remove('active');
+            searchForm.classList.add('active');
+        }else{
+            // main pahle search wale tab pr tha, ab your weather wale tab per jayenge
+            searchForm.classList.remove('active');
+            userInfoContainer.classList.remove('active');
+            // ab main your weather tab me aagya hu, toh weather bhi display karna padega,so let's 
+            // check local storage first for coordinates, if we. haved saved them there.
+            getfromSessionStorage();
+        }
 
-        newPara.innerText =`                        
-        temp :${response.data.main.temp}°C
-        humidity : ${response.data.main.humidity}% 
-        pressure : ${response.data.main.pressure}hPa` ;  //for axios method  
-        document.body.appendChild(newPara);
-    } catch (error) {
-        console.error("❌ Error fetching weather data:", error.message);
     }
 }
 
+userTab.addEventListener("click",()=>{
+    // pass clicked tab as input parameter 
+    switchTab(userTab);
+});
+
+searchTab.addEventListener("click",()=>{
+    // pass clicked tab as input parameter 
+    switchTab(searchTab);
+});
 
 
-pressure
-: 
-1001
-sea_level
-: 
-1001
-temp
-: 
-33.45
-temp_max
-: 
-33.45
-temp_min
-: 
-33.45
+// check if coordinates are already present in session storage
+function getfromSessionStorage(){
+    const localCoordinates = sessionStorage.getItem('user-coordinates');
+    if(!localCoordinates){
+        // agar localCoordinates nahi mile
+        grantAccessContainer.classList.add('active');
+    }else{
+        const coordinates = JSON.parse(localCoordinates);
+        fetchUserWeatherInfo(coordinates);
+    }
+}
 
+async function fetchUserWeatherInfo(coordinates){
+    const {lat , lon} = coordinates;
+    // make grantcontainer invisible
+    grantAccessContainer.classList.remove('active');
+    // make loader visible
+    loadingScreen.classList.add('active');
 
-// async function updateUI() {
-//     const data = await showWeather();
-//     if (data) {
-//         weatherData.innerText = `Temperature: ${data.temp}°C\nHumidity: ${data.humidity}%`;
-//     }
-// }
+    // API call
+    try{
+        const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
+            );
+        const data = await response.json();
 
-// updateUI(); // call it
+        loadingScreen.classList.remove('active');
+        userInfoContainer.classList.add('active');
+        renderWeatherInfo(data);
 
+    }catch(err){
+        loadingScreen.classList.remove('active');
+        // hw
+    }
+}
+
+function renderWeatherInfo(weatherInfo){
+    // we have fetch the element
+
+    const cityName = document.querySelector('[data-cityName]');
+    const countryIcon = document.querySelector('[data-countryIcon]');
+    const desc = document.querySelector('[data-weatherDesc]');
+    const weatherIcon = document.querySelector('[data-weatherIcon]');
+
+    const temp = document.querySelector('[data-temp]');
+    const windspeed = document.querySelector('[data-windspeed]');
+    const humidity = document. querySelector('[data-humidity]');
+    const cloudiness= document.querySelector('[data-cloudiness]');
+
+    // fetch value from weatherInfo object and put it UP elements
+    cityName.innerText = weatherInfo?.name;
+    countryIcon.src = `https://flagcdn.com/144x108/${weatherInfo?.sys?.country.toLowerCase()}.png`;
+    desc.innerText = weatherInfo?.weather?.[0]?.description;
+    weatherIcon.src = `http://openweathermap.org/img/w/${weatherInfo?.weather?.[0]?.icon}.png`;
+    temp.innerText = weatherInfo?.main?.temp;
+    windspeed.innerText = weatherInfo?.wind?.speed;
+    humidity.innerText = weatherInfo?.main?.humidity;
+    cloudiness.innerText = weatherInfo?.clouds?.all;
+}
+
+function getLocation(){
+    if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(showPosition);
+    }else{
+        alert("Geolocation support not available ");
+    }
+}
+
+function showPosition(position){
+    const userCoordinates = {
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+    }
+
+    sessionStorage.setItem("user-coordinates",JSON.stringify(userCoordinates));
+    fetchUserWeatherInfo(userCoordinates);
+}
+
+const grantAccessButton = document.querySelector('[data-grantAccess]');
+grantAccessButton.addEventListener('click',getLocation);
+
+const searchInput = document.querySelector('[data-searchInput]');
+searchForm.addEventListener('submit',(e)=>{
+    e.preventDefault();
+    let cityName = searchInput.value;
+
+    if(cityName === ''){
+        return;
+    }else{
+        fetchSearchWeatherInfo(cityName);
+    }
+});
+
+async function fetchSearchWeatherInfo(city) {
+    // Show loading
+    loadingScreen.classList.add('active');
+    userInfoContainer.classList.remove('active');
+    grantAccessContainer.classList.remove('active');
+
+    try {
+        // Fetch data from OpenWeatherMap API
+        const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
+        );
+
+        const data = await response.json();
+
+        // Hide loading, show user info
+        loadingScreen.classList.remove('active');
+        userInfoContainer.classList.add('active');
+
+        // Render the weather data on the screen
+        renderWeatherInfo(data);
+
+    } catch (err) {
+        console.log("Error fetching weather:", err);
+        loadingScreen.classList.remove('active'); // hide loader even on error
+    }
+}
